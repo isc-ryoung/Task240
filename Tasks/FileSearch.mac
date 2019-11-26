@@ -8,6 +8,7 @@ ROUTINE Tasks.FileSearch
 #define FALSE 0 
 
 FileSearch
+	new exc
 	set debug = $$$FALSE
 	try{
 		if debug {
@@ -25,6 +26,7 @@ FileSearch
 	    }else{
 	    	do displayException(exc)	    
 	    }
+	    //kill exc
 	}		
 			
 	do finally()
