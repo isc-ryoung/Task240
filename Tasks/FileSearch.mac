@@ -1,46 +1,74 @@
 ROUTINE Tasks.FileSearch
 
+/// do ^Tasks.FileSearch
 
 #; space used as atelier doesn't recognise empty string 
 #define EMPTY " " 
-
+#define TRUE 1 
+#define FALSE 0 
+ 
 FileSearch
-		try{
+	set debug = $$$TRUE
+	try{
+		if debug {
 			set dir=##class(%SYSTEM.Process).CurrentDirectory() 
-			write !, dir
-			do promptFilename()				
-		}catch exc{
-			use 0
-		    write !,"Exception occurred: "
-		    write !,"Exception: ",exc.DisplayString()
-		    write !,"  class: ",$classname(exc)
-		    write !,"  name: ",exc.Name
-		    write !,"  code: ",exc.Code
-		}		
+			write dir, !
+		}
+		do promptFilename()				
+	}catch exc{
+		use 0
+		if debug {
+			do displayException(exc)	    
+		}
+	    if exc.Name = "<INTERRUPT>"{
+	    	write "User exiting with ctrl-c", !
+	    }else{
+	    	do displayException(exc)	    
+	    }
+	}		
 			
-		do finally()
+	do finally()
 
-finally(){
-	if $data(filename) && filename{
-		close filename
-	}
-	write !, "quit FileSearch"	
+
+displayException(exc){
+	write "Exception occurred: ", !
+	write "Exception: ",exc.DisplayString(), !
+	write "  class: ",$classname(exc), !
+	write "  name: ",exc.Name, !
+	write "  code: ",exc.Code, !
 }
 
-promptFilename()  [filename] ; procedure for prompting
+finally() [filename, debug] {
+	if ($data(filename)) && ($length(filename)>1){
+		write "closing filename "	,filename, !
+		close filename
+	}
+	kill filename 
+	kill debug
+	write "Quitting FileSearch"	, !
+}
+
+promptFilename()  [filename, debug] ; procedure for prompting filename
   	{
 	    do {
-	    	write !, "Enter file name (press ctrl-c to quit)"
-	    	write !, "[Default is ""A-Rose.txt (Sonnet from Romeo and Juliet) ""]"
-	    	read !, ">>", filename
+	    	write "Enter file name (press ctrl-c to quit)", !
+	    	write "[Default is ""A-Rose.txt (Sonnet from Romeo and Juliet) ""]", !
+	    	read !, ">> ", filename
 	    	if ($length(filename)=0){
 	    		set filename = "A-Rose.txt"
 	    	}
-	    	write !, "filename = ", filename
+	    	if debug {
+	    		write "filename = ", filename, !
+	    	}
+	    	
 	        quit:(filename = $$$EMPTY)  
 	        
-	        do promptSearchString(filename)
-	    	
+	    	set fileExists=##class(%File).Exists(filename)	    	
+	        if (fileExists){	    	
+	        	do promptSearchString(filename)
+	    	}else{
+	    		write "filename = ", filename, " does not exist please try again." , !
+	    	}
 
 	    } while filename '= 0 
 	    
@@ -48,22 +76,27 @@ promptFilename()  [filename] ; procedure for prompting
 	
     }
 
-promptSearchString(filename) 
+promptSearchString(filename) [debug] 
   	{
 	    do {
-	    	write !, "Enter search string (press ctrl-c to quit)"
-	    	write !, "[Default is ""Romeo""]"
-	    	read !, "]]", searchstring 
+	    	write "Enter search string (press ctrl-c to quit)", !
+	    	write "[Default is ""Romeo""]", !
+	    	read "]] ", searchstring 
 	    	if ($length(searchstring)=0){
 	    		set searchstring = "Romeo"
 	    	}
-	    	write !, "searchstring = ", searchstring
+	    	if debug
+	    	   	write "searchstring = ", searchstring, !
+	    	   	
 	    	quit:(searchstring = $$$EMPTY)  
 	        
-	        set found = "Found text:" _ $Char(10) //$$$NL 
+	        set found = "" //"Found text:" _ $Char(10) //$$$NL 
 	        do searchFile(filename, searchstring, .found)
-	        write !, found
-	        
+	        if $length(found) > 0 {
+	        	write "Found text:" , !, "*", found, "*", !
+	        }else{
+	        	write "Search string not found", !
+	        }
 	    } while searchstring '= 0
 	    
 	    //quit:(searchstring = $$$EMPTY) ; exit procedure
@@ -71,31 +104,38 @@ promptSearchString(filename)
     }
 	
 
-searchFile(filename, searchstring, found){
+searchFile(filename, searchstring, found) [debug]{
 	NEW $ESTACK
 	SET $ZTRAP="OnError"
 	open filename
 	set ctr = 1
 	for{
-		use filename
-		
+		use filename		
 		read data		
-		use 0
 		
 		set pos = $find(data, searchstring)
 		if pos {
 			set found = found _ "Line "_ ctr _ ":" _ data _ $Char(10) //$$$NL
 		}
 	
-		write !, data
+		if debug {
+			use 0
+			write data, !
+		}
 		set ctr = ctr + 1
 	}	
 	
-OnError
+OnError 
    Use 0
    close filename
-   WRITE !,"OnError $ESTACK= ",$ESTACK   // 1
-   WRITE !,"$ECODE= ",$ECODE
+   if debug{
+   		WRITE "OnError $ESTACK= ",$ESTACK  , ! 
+   		WRITE "$ZERROR = ",$ZERROR,!
+   }
+   set pos = $find($ZERROR, "<ENDOFFILE>")
+   if pos {
+      write "End of file reached", !
+   }
    SET $ZTRAP=""
 }
 
