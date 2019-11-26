@@ -8,7 +8,7 @@ ROUTINE Tasks.FileSearch
 #define FALSE 0 
  
 FileSearch
-	set debug = $$$TRUE
+	set debug = $$$FALSE
 	try{
 		if debug {
 			set dir=##class(%SYSTEM.Process).CurrentDirectory() 
@@ -30,7 +30,8 @@ FileSearch
 	do finally()
 
 
-displayException(exc){
+displayException(exc); procedure for displaying exception
+{
 	write "Exception occurred: ", !
 	write "Exception: ",exc.DisplayString(), !
 	write "  class: ",$classname(exc), !
@@ -38,22 +39,18 @@ displayException(exc){
 	write "  code: ",exc.Code, !
 }
 
-finally() [filename, debug] {
-	if ($data(filename)) && ($length(filename)>1){
-		write "closing filename "	,filename, !
-		close filename
-	}
-	kill filename 
+finally() [debug] ; procedure for clearing up
+{	
 	kill debug
 	write "Quitting FileSearch"	, !
 }
 
-promptFilename()  [filename, debug] ; procedure for prompting filename
+promptFilename() [debug] ; procedure for prompting filename
   	{
 	    do {
 	    	write "Enter file name (press ctrl-c to quit)", !
 	    	write "[Default is ""A-Rose.txt (Sonnet from Romeo and Juliet) ""]", !
-	    	read !, ">> ", filename
+	    	read ">> ", filename, !
 	    	if ($length(filename)=0){
 	    		set filename = "A-Rose.txt"
 	    	}
@@ -70,18 +67,15 @@ promptFilename()  [filename, debug] ; procedure for prompting filename
 	    		write "filename = ", filename, " does not exist please try again." , !
 	    	}
 
-	    } while filename '= 0 
-	    
-	    //quit:(filename = $$$EMPTY) ; exit procedure
-	
+	    } while filename '= 0 	    	
     }
 
-promptSearchString(filename) [debug] 
+promptSearchString(filename) [debug] ; procedure for prompting search string
   	{
 	    do {
 	    	write "Enter search string (press ctrl-c to quit)", !
 	    	write "[Default is ""Romeo""]", !
-	    	read "]] ", searchstring 
+	    	read "]] ", searchstring , !
 	    	if ($length(searchstring)=0){
 	    		set searchstring = "Romeo"
 	    	}
@@ -92,19 +86,18 @@ promptSearchString(filename) [debug]
 	        
 	        set found = "" //"Found text:" _ $Char(10) //$$$NL 
 	        do searchFile(filename, searchstring, .found)
+	        write !, "************************************************", !
 	        if $length(found) > 0 {
-	        	write "Found text:" , !, "*", found, "*", !
+	        	write "Found text including <", searchstring,">:" , !,  found,  !
 	        }else{
 	        	write "Search string not found", !
 	        }
 	    } while searchstring '= 0
-	    
-	    //quit:(searchstring = $$$EMPTY) ; exit procedure
-	
     }
 	
 
-searchFile(filename, searchstring, found) [debug]{
+searchFile(filename, searchstring, found) [debug] ; procedure for searching file
+{
 	NEW $ESTACK
 	SET $ZTRAP="OnError"
 	open filename
@@ -115,7 +108,7 @@ searchFile(filename, searchstring, found) [debug]{
 		
 		set pos = $find(data, searchstring)
 		if pos {
-			set found = found _ "Line "_ ctr _ ":" _ data _ $Char(10) //$$$NL
+			set found = found _ "Line "_ ctr _ ": " _ $replace(data, searchstring, "<"_searchstring_">") _ $Char(10) //$$$NL
 		}
 	
 		if debug {
@@ -125,7 +118,7 @@ searchFile(filename, searchstring, found) [debug]{
 		set ctr = ctr + 1
 	}	
 	
-OnError 
+OnError ; label for catching end of file 
    Use 0
    close filename
    if debug{
