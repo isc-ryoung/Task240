@@ -79,9 +79,10 @@ promptSearchString(filename) [debug] ; procedure for prompting search string
 	    	if ($length(searchstring)=0){
 	    		set searchstring = "Romeo"
 	    	}
-	    	if debug
+	    	if debug{
 	    	   	write "searchstring = ", searchstring, !
-	    	   	
+	    	}
+	    	
 	    	quit:(searchstring = $$$EMPTY)  
 	        
 	        set found = "" //"Found text:" _ $Char(10) //$$$NL 
