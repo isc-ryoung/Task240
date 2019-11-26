@@ -1,0 +1,104 @@
+ROUTINE Tasks.FileSearch
+
+
+#; space used as atelier doesn't recognise empty string 
+#define EMPTY " " 
+
+FileSearch
+		try{
+			set dir=##class(%SYSTEM.Process).CurrentDirectory() 
+			write !, dir
+			do promptFilename()				
+		}catch exc{
+			use 0
+		    write !,"Exception occurred: "
+		    write !,"Exception: ",exc.DisplayString()
+		    write !,"  class: ",$classname(exc)
+		    write !,"  name: ",exc.Name
+		    write !,"  code: ",exc.Code
+		}		
+			
+		do finally()
+
+finally(){
+	if $data(filename) && filename{
+		close filename
+	}
+	write !, "quit FileSearch"	
+}
+
+promptFilename()  [filename] ; procedure for prompting
+  	{
+	    do {
+	    	write !, "Enter file name (press ctrl-c to quit)"
+	    	write !, "[Default is ""A-Rose.txt (Sonnet from Romeo and Juliet) ""]"
+	    	read !, ">>", filename
+	    	if ($length(filename)=0){
+	    		set filename = "A-Rose.txt"
+	    	}
+	    	write !, "filename = ", filename
+	        quit:(filename = $$$EMPTY)  
+	        
+	        do promptSearchString(filename)
+	    	
+
+	    } while filename '= 0 
+	    
+	    //quit:(filename = $$$EMPTY) ; exit procedure
+	
+    }
+
+promptSearchString(filename) 
+  	{
+	    do {
+	    	write !, "Enter search string (press ctrl-c to quit)"
+	    	write !, "[Default is ""Romeo""]"
+	    	read !, "]]", searchstring 
+	    	if ($length(searchstring)=0){
+	    		set searchstring = "Romeo"
+	    	}
+	    	write !, "searchstring = ", searchstring
+	    	quit:(searchstring = $$$EMPTY)  
+	        
+	        set found = "Found text:" _ $Char(10) //$$$NL 
+	        do searchFile(filename, searchstring, .found)
+	        write !, found
+	        
+	    } while searchstring '= 0
+	    
+	    //quit:(searchstring = $$$EMPTY) ; exit procedure
+	
+    }
+	
+
+searchFile(filename, searchstring, found){
+	NEW $ESTACK
+	SET $ZTRAP="OnError"
+	open filename
+	set ctr = 1
+	for{
+		use filename
+		
+		read data		
+		use 0
+		
+		set pos = $find(data, searchstring)
+		if pos {
+			set found = found _ "Line "_ ctr _ ":" _ data _ $Char(10) //$$$NL
+		}
+	
+		write !, data
+		set ctr = ctr + 1
+	}	
+	
+OnError
+   Use 0
+   close filename
+   WRITE !,"OnError $ESTACK= ",$ESTACK   // 1
+   WRITE !,"$ECODE= ",$ECODE
+   SET $ZTRAP=""
+}
+
+	
+
+  
